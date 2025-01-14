@@ -70,8 +70,8 @@ class ClipboardManager(QtWidgets.QWidget):
         if mode == "copy":
             logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
-            time.sleep(0.5)  # Allow time for clipboard to update
             keyboard.press_and_release("ctrl+c")
+            time.sleep(0.5)  # Allow time for clipboard to update
             self.current_clipboard_content = pyperclip.paste()
             logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
         self.update_ui()
@@ -85,6 +85,11 @@ manager = ClipboardManager()
 def hotkey_listener():
     def copy_hotkey():
         logging.debug("Ctrl+Shift+C pressed.")
+        # Ensure no keys are pressed before sending Ctrl+C
+        logging.debug("Ensuring no keys are pressed before copying.")
+        while keyboard.is_pressed("ctrl") or keyboard.is_pressed("shift") or keyboard.is_pressed("c"):
+            time.sleep(0.05)  # Wait until all keys are released
+
         manager.trigger_ui.emit("copy")  # Emit signal to show UI in copy mode
 
     def paste_hotkey():
