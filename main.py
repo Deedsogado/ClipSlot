@@ -5,12 +5,18 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import threading
 
 class ClipboardManager(QtWidgets.QWidget):
+    # Define a signal to safely update the UI from a different thread
+    trigger_ui = QtCore.pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.slots = ["" for _ in range(10)]  # Initialize 10 clipboard slots
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         self.setGeometry(400, 200, 600, 400)
+
+        # Connect the custom signal to the show_ui method
+        self.trigger_ui.connect(self.show_ui)
 
     def init_ui(self):
         self.layout = QtWidgets.QGridLayout()
@@ -47,10 +53,10 @@ manager = ClipboardManager()
 # Function to handle hotkeys in a separate thread
 def hotkey_listener():
     def copy_hotkey():
-        QtCore.QMetaObject.invokeMethod(manager, "show_ui", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, "copy"))
+        manager.trigger_ui.emit("copy")  # Emit signal to show UI in copy mode
 
     def paste_hotkey():
-        QtCore.QMetaObject.invokeMethod(manager, "show_ui", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, "paste"))
+        manager.trigger_ui.emit("paste")  # Emit signal to show UI in paste mode
 
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
