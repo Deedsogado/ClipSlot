@@ -72,14 +72,8 @@ class ClipboardManager(QtWidgets.QWidget):
             logging.debug("Simulating Ctrl+C to copy selected text.")
             time.sleep(0.5)  # Allow time for clipboard to update
             keyboard.press_and_release("ctrl+c")
-            for _ in range(5):  # Retry up to 5 times if clipboard isn't updated
-                time.sleep(0.05)  # Small delay before retrying
-                new_clipboard_content = pyperclip.paste()
-                # logging.debug(f"new_clipboard_content: {self.new_clipboard_content}")
-                if new_clipboard_content != self.current_clipboard_content:
-                    self.current_clipboard_content = new_clipboard_content
-                    logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
-                    break
+            self.current_clipboard_content = pyperclip.paste()
+            logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
         self.update_ui()
         self.show()
 
