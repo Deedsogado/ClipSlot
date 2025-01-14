@@ -9,6 +9,8 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+isListeningForC = True
+
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
     trigger_ui = QtCore.pyqtSignal(str)
@@ -55,10 +57,13 @@ class ClipboardManager(QtWidgets.QWidget):
         logging.debug("UI updated with current slots.")
 
     def slot_selected(self, index):
+        global isListeningForC
         if self.mode == "copy":
             logging.debug(f"Copying to slot {index+1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
+            isListeningForC = True
+            time.sleep(0.5)  # wait a bit for user to see the new values before hiding.
         elif self.mode == "paste":
             logging.debug(f"Pasting from slot {index+1}: {self.slots[index]}")
             pyperclip.copy(self.slots[index])
@@ -71,7 +76,7 @@ class ClipboardManager(QtWidgets.QWidget):
             logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
-            time.sleep(0.5)  # Allow time for clipboard to update
+            time.sleep(1)  # Allow time for clipboard to update
             self.current_clipboard_content = pyperclip.paste()
             logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
         self.update_ui()
@@ -84,6 +89,11 @@ manager = ClipboardManager()
 # Function to handle hotkeys in a separate thread
 def hotkey_listener():
     def copy_hotkey():
+        global isListeningForC
+        if not isListeningForC:
+            return
+
+        isListeningForC = False
         logging.debug("Ctrl+Shift+C pressed.")
         # Ensure no keys are pressed before sending Ctrl+C
         logging.debug("Ensuring no keys are pressed before copying.")
