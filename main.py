@@ -11,6 +11,7 @@ class ClipboardManager(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.slots = ["" for _ in range(10)]  # Initialize 10 clipboard slots
+        self.current_clipboard_content = ""  # Store the current clipboard content
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         self.setGeometry(400, 200, 800, 300)
@@ -26,19 +27,27 @@ class ClipboardManager(QtWidgets.QWidget):
             text_area.setReadOnly(True)
             text_area.setStyleSheet("font-size: 14px; padding: 5px;")
             text_area.setText(f"Slot {i+1}: {self.slots[i]}")
-            text_area.mousePressEvent = lambda _, index=i: self.slot_selected(index)
+
+            # Fix: Bind the current value of index to the lambda using a default argument
+            text_area.mousePressEvent = self.create_mouse_press_event(i)
+
             self.layout.addWidget(text_area, i // 5, i % 5)
             self.text_areas.append(text_area)
         self.setLayout(self.layout)
 
+    def create_mouse_press_event(self, index):
+        def mouse_press_event(event):
+            self.slot_selected(index)
+        return mouse_press_event
+
     def update_ui(self):
         for i, text_area in enumerate(self.text_areas):
             content_preview = (self.slots[i][:50] + '...') if len(self.slots[i]) > 50 else self.slots[i]
-            text_area.setText(f"Slot {i+1}:\n{content_preview}")
+            text_area.setText(f"Slot {i+1}:{content_preview}")
 
     def slot_selected(self, index):
         if self.mode == "copy":
-            self.slots[index] = pyperclip.paste()
+            self.slots[index] = self.current_clipboard_content
             self.update_ui()
         elif self.mode == "paste":
             pyperclip.copy(self.slots[index])
@@ -46,6 +55,8 @@ class ClipboardManager(QtWidgets.QWidget):
 
     def show_ui(self, mode):
         self.mode = mode
+        if mode == "copy":
+            self.current_clipboard_content = pyperclip.paste()
         self.update_ui()
         self.show()
 
