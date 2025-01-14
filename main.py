@@ -13,25 +13,28 @@ class ClipboardManager(QtWidgets.QWidget):
         self.slots = ["" for _ in range(10)]  # Initialize 10 clipboard slots
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self.setGeometry(400, 200, 600, 400)
+        self.setGeometry(400, 200, 800, 300)
 
         # Connect the custom signal to the show_ui method
         self.trigger_ui.connect(self.show_ui)
 
     def init_ui(self):
         self.layout = QtWidgets.QGridLayout()
-        self.buttons = []
+        self.text_areas = []
         for i in range(10):
-            button = QtWidgets.QPushButton(f"Slot {i+1}: {self.slots[i]}")
-            button.clicked.connect(lambda _, index=i: self.slot_selected(index))
-            self.layout.addWidget(button, i // 5, i % 5)
-            self.buttons.append(button)
+            text_area = QtWidgets.QTextEdit()
+            text_area.setReadOnly(True)
+            text_area.setStyleSheet("font-size: 14px; padding: 5px;")
+            text_area.setText(f"Slot {i+1}: {self.slots[i]}")
+            text_area.mousePressEvent = lambda _, index=i: self.slot_selected(index)
+            self.layout.addWidget(text_area, i // 5, i % 5)
+            self.text_areas.append(text_area)
         self.setLayout(self.layout)
 
     def update_ui(self):
-        for i, button in enumerate(self.buttons):
-            content_preview = (self.slots[i][:20] + '...') if len(self.slots[i]) > 20 else self.slots[i]
-            button.setText(f"Slot {i+1}: {content_preview}")
+        for i, text_area in enumerate(self.text_areas):
+            content_preview = (self.slots[i][:50] + '...') if len(self.slots[i]) > 50 else self.slots[i]
+            text_area.setText(f"Slot {i+1}:\n{content_preview}")
 
     def slot_selected(self, index):
         if self.mode == "copy":
