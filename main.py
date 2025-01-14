@@ -1,7 +1,8 @@
 import sys
 import pyperclip
 import keyboard
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
+import threading
 
 class ClipboardManager(QtWidgets.QWidget):
     def __init__(self):
@@ -19,12 +20,12 @@ class ClipboardManager(QtWidgets.QWidget):
             button.clicked.connect(lambda _, index=i: self.slot_selected(index))
             self.layout.addWidget(button, i // 5, i % 5)
             self.buttons.append(button)
-            self.layoutDirection()
         self.setLayout(self.layout)
 
     def update_ui(self):
         for i, button in enumerate(self.buttons):
-            button.setText(f"Slot {i+1}: {self.slots[i]}")
+            content_preview = (self.slots[i][:20] + '...') if len(self.slots[i]) > 20 else self.slots[i]
+            button.setText(f"Slot {i+1}: {content_preview}")
 
     def slot_selected(self, index):
         if self.mode == "copy":
@@ -38,21 +39,26 @@ class ClipboardManager(QtWidgets.QWidget):
         self.mode = mode
         self.update_ui()
         self.show()
-        QtCore.QTimer.singleShot(500, self.hide)
 
 # Set up the application
 app = QtWidgets.QApplication(sys.argv)
 manager = ClipboardManager()
 
-# Hotkey listeners
-def copy_hotkey():
-    manager.show_ui("copy")
+# Function to handle hotkeys in a separate thread
+def hotkey_listener():
+    def copy_hotkey():
+        QtCore.QMetaObject.invokeMethod(manager, "show_ui", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, "copy"))
 
-def paste_hotkey():
-    manager.show_ui("paste")
+    def paste_hotkey():
+        QtCore.QMetaObject.invokeMethod(manager, "show_ui", QtCore.Qt.QueuedConnection, QtCore.Q_ARG(str, "paste"))
 
-keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
-keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
+    keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
+    keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
+    keyboard.wait()
+
+# Run the hotkey listener in a separate thread
+hotkey_thread = threading.Thread(target=hotkey_listener, daemon=True)
+hotkey_thread.start()
 
 # Run the application
 try:
