@@ -19,12 +19,14 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
 
     def init_ui(self):
         # Use absolute positioning to overlay the slot_label
+        # Label for content
         self.content_label = QtWidgets.QLabel(self)
         self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.content_label.setWordWrap(True)
         self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 5px;")
         self.content_label.setGeometry(0, 0, self.width(), self.height())
 
+        # Label for slot index
         self.slot_label = QtWidgets.QLabel(self)
         self.slot_label.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
         self.slot_label.setStyleSheet("font-size: 14px; color: silver; margin: 0; background: transparent;")
@@ -39,10 +41,25 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
 
     def set_content(self, content):
         if isinstance(content, QtGui.QPixmap):
-            self.content_label.setPixmap(content.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
-        else:
+            if content.isNull():
+                # Fallback if the image is invalid
+                self.content_label.setText("No Preview Available")
+                self.content_label.setStyleSheet("color: red; font-size: 14px;")
+                self.content_label.setAlignment(QtCore.Qt.AlignCenter)
+            else:
+                # Display the image
+                self.content_label.setPixmap(content.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
+        elif isinstance(content, str):
+            # Display text content
             self.content_label.setText(content)
-
+            self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+            self.content_label.setWordWrap(True)
+            self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 5px;")
+        else:
+            # Fallback for unsupported content types
+            self.content_label.setText("Unsupported Content")
+            self.content_label.setStyleSheet("color: red; font-size: 14px;")
+            self.content_label.setAlignment(QtCore.Qt.AlignCenter)
 
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
@@ -97,7 +114,7 @@ class ClipboardManager(QtWidgets.QWidget):
         logging.debug(f"slot_selected called with mode: {self.mode}")
         self.disable_number_key_listeners()
         if self.mode == "copy":
-            logging.debug(f"Copying to slot {index + 1}: {self.current_clipboard_content}")
+            # logging.debug(f"Copying to slot {index + 1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
             time.sleep(0.5)  # Wait for user to see the new values before hiding
@@ -128,12 +145,12 @@ class ClipboardManager(QtWidgets.QWidget):
         logging.debug(f"show_ui called with mode: {mode}")
         self.mode = mode
         if mode == "copy":
-            logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
+            # logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
             time.sleep(0.01)  # Allow time for clipboard to update
             self.current_clipboard_content = pyperclip.paste()
-            logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
+            # logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
             self.update_ui()
         self.show()
 
