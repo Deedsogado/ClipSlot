@@ -23,7 +23,11 @@ class ClipboardManager(QtWidgets.QWidget):
         self.current_clipboard_content = ""  # Store the current clipboard content
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self.setGeometry(1600, 400, 800, 300)
+        dialog_width = self.screen().size().width() - 100
+        dialog_height = 150
+        dialog_x = (self.screen().size().width() // 2) - (dialog_width // 2)
+        dialog_y = 0 # (self.screen().size().height() // 2) - (dialog_height // 2)
+        self.setGeometry(dialog_x, dialog_y, dialog_width, dialog_height)
 
         # Connect the custom signal to the show_ui method
         self.trigger_show_ui.connect(self.show_ui)
@@ -43,7 +47,7 @@ class ClipboardManager(QtWidgets.QWidget):
             # Bind the current value of index to the lambda using a default argument
             text_area.mousePressEvent = self.create_mouse_press_event(i)
 
-            self.layout.addWidget(text_area, i // 5, i % 5)
+            self.layout.addWidget(text_area, 1, i)
             self.text_areas.append(text_area)
         self.setLayout(self.layout)
         logging.debug("UI initialized.")
@@ -56,7 +60,7 @@ class ClipboardManager(QtWidgets.QWidget):
 
     def update_ui(self):
         for i, text_area in enumerate(self.text_areas):
-            content_preview = (self.slots[i][:50] + '...') if len(self.slots[i]) > 50 else self.slots[i]
+            content_preview = (self.slots[i][:100] + '...') if len(self.slots[i]) > 100 else self.slots[i]
             text_area.setText(f"Slot {i+1}:{content_preview}")
         logging.debug("UI updated with current slots.")
         QtGui.QGuiApplication.processEvents()  # update gui so that pyqt app loop completes and displays frame to user
