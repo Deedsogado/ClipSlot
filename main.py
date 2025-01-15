@@ -15,6 +15,7 @@ class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
     trigger_show_ui = QtCore.pyqtSignal(str)
     trigger_select_slot = QtCore.pyqtSignal(int)
+    trigger_hide_ui = QtCore.pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -27,6 +28,7 @@ class ClipboardManager(QtWidgets.QWidget):
         # Connect the custom signal to the show_ui method
         self.trigger_show_ui.connect(self.show_ui)
         self.trigger_select_slot.connect(self.slot_selected)
+        self.trigger_hide_ui.connect(self.hide_ui)
         logging.debug("ClipboardManager initialized.")
 
     def init_ui(self):
@@ -78,9 +80,18 @@ class ClipboardManager(QtWidgets.QWidget):
         self.hide()
 
     def disable_number_key_listeners(self):
-        logging.debug("disable_number_key_listeners for 1 through 9, and 0")
-        for number in range(10):
-            keyboard.remove_hotkey(str(number))
+        logging.debug("disable_number_key_listeners for 0 through 9, and ESC")
+        keyboard.remove_hotkey("1")
+        keyboard.remove_hotkey("2")
+        keyboard.remove_hotkey("3")
+        keyboard.remove_hotkey("4")
+        keyboard.remove_hotkey("5")
+        keyboard.remove_hotkey("6")
+        keyboard.remove_hotkey("7")
+        keyboard.remove_hotkey("8")
+        keyboard.remove_hotkey("9")
+        keyboard.remove_hotkey("0")
+        keyboard.remove_hotkey("esc")
 
     def show_ui(self, mode):
         logging.debug(f"show_ui called with mode: {mode}")
@@ -94,6 +105,13 @@ class ClipboardManager(QtWidgets.QWidget):
             logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
         self.update_ui()
         self.show()
+
+    def hide_ui(self):
+        global isListeningForC
+        isListeningForC = True
+        logging.debug("hide_ui called. ")
+        self.disable_number_key_listeners()
+        self.hide()
 
 # Set up the application
 app = QtWidgets.QApplication(sys.argv)
@@ -118,29 +136,34 @@ def hotkey_listener():
         manager.trigger_show_ui.emit("copy")  # Emit signal to show_ui() in copy mode
 
     def enable_number_key_listeners():
-        logging.debug("enable_number_key_listeners for 1 through 9, and 0")
-        keyboard.add_hotkey("1", select_hotkey, args=tuple("0"), suppress=True)
-        keyboard.add_hotkey("2", select_hotkey, args=tuple("1"), suppress=True)
-        keyboard.add_hotkey("3", select_hotkey, args=tuple("2"), suppress=True)
-        keyboard.add_hotkey("4", select_hotkey, args=tuple("3"), suppress=True)
-        keyboard.add_hotkey("5", select_hotkey, args=tuple("4"), suppress=True)
-        keyboard.add_hotkey("6", select_hotkey, args=tuple("5"), suppress=True)
-        keyboard.add_hotkey("7", select_hotkey, args=tuple("6"), suppress=True)
-        keyboard.add_hotkey("8", select_hotkey, args=tuple("7"), suppress=True)
-        keyboard.add_hotkey("9", select_hotkey, args=tuple("8"), suppress=True)
-        keyboard.add_hotkey("0", select_hotkey, args=tuple("9"), suppress=True)
+        logging.debug("enable_number_key_listeners for 0 through 9, and ESC")
+        keyboard.add_hotkey("1", type_number_hotkey, args=tuple("0"), suppress=True)
+        keyboard.add_hotkey("2", type_number_hotkey, args=tuple("1"), suppress=True)
+        keyboard.add_hotkey("3", type_number_hotkey, args=tuple("2"), suppress=True)
+        keyboard.add_hotkey("4", type_number_hotkey, args=tuple("3"), suppress=True)
+        keyboard.add_hotkey("5", type_number_hotkey, args=tuple("4"), suppress=True)
+        keyboard.add_hotkey("6", type_number_hotkey, args=tuple("5"), suppress=True)
+        keyboard.add_hotkey("7", type_number_hotkey, args=tuple("6"), suppress=True)
+        keyboard.add_hotkey("8", type_number_hotkey, args=tuple("7"), suppress=True)
+        keyboard.add_hotkey("9", type_number_hotkey, args=tuple("8"), suppress=True)
+        keyboard.add_hotkey("0", type_number_hotkey, args=tuple("9"), suppress=True)
+        keyboard.add_hotkey("esc", esc_hotkey, suppress=True)
 
     def paste_hotkey():
         logging.debug("Ctrl+Shift+V pressed.")
+        enable_number_key_listeners()
         manager.trigger_show_ui.emit("paste")  # Emit signal to show_ui() in paste mode
 
-    def select_hotkey(key_value):
+    def type_number_hotkey(key_value):
         global isListeningForC
         if isListeningForC:
             return
 
         logging.debug(f"Number {key_value} was pressed.")
         manager.trigger_select_slot.emit(int(key_value)) # fires slot_selected()
+
+    def esc_hotkey():
+        manager.trigger_hide_ui.emit() # call hide_ui
 
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
