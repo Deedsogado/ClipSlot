@@ -11,6 +11,34 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 is_listening_for_key_chord = True
 
+class ClipboardSlotWidget(QtWidgets.QWidget):
+    def __init__(self, slot_index, parent=None):
+        super().__init__(parent)
+        self.slot_index = slot_index
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self.content_label = QtWidgets.QLabel()
+        self.content_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.content_label.setWordWrap(True)
+        self.content_label.setStyleSheet("font-size: 14px; border: 1px solid gray; padding: 5px;")
+
+        self.slot_label = QtWidgets.QLabel(f"{self.slot_index + 1}")
+        self.slot_label.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
+        self.slot_label.setStyleSheet("font-size: 12px; color: gray; margin: 0; border: 1px solid red;")
+
+        layout.addWidget(self.content_label)
+        layout.addWidget(self.slot_label)
+
+    def set_content(self, content):
+        if isinstance(content, QtGui.QPixmap):
+            self.content_label.setPixmap(content.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
+        else:
+            self.content_label.setText(content)
+
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
     trigger_show_ui = QtCore.pyqtSignal(str)
@@ -26,7 +54,7 @@ class ClipboardManager(QtWidgets.QWidget):
         dialog_width = self.screen().size().width() - 100
         dialog_height = 150
         dialog_x = (self.screen().size().width() // 2) - (dialog_width // 2)
-        dialog_y = 0 # (self.screen().size().height() // 2) - (dialog_height // 2)
+        dialog_y = 0
         self.setGeometry(dialog_x, dialog_y, dialog_width, dialog_height)
 
         # Connect the custom signal to the show_ui method
@@ -37,45 +65,39 @@ class ClipboardManager(QtWidgets.QWidget):
 
     def init_ui(self):
         self.layout = QtWidgets.QGridLayout()
-        self.text_areas = []
+        self.slot_widgets = []
         for i in range(10):
-            text_area = QtWidgets.QTextEdit()
-            text_area.setReadOnly(True)
-            text_area.setStyleSheet("font-size: 14px; padding: 5px;")
-            text_area.setText(f"Slot {i+1}: {self.slots[i]}")
+            slot_widget = ClipboardSlotWidget(i)
+            slot_widget.mousePressEvent = self.create_mouse_press_event(i)
+            self.layout.addWidget(slot_widget, 1, i)
+            self.slot_widgets.append(slot_widget)
 
-            # Bind the current value of index to the lambda using a default argument
-            text_area.mousePressEvent = self.create_mouse_press_event(i)
-
-            self.layout.addWidget(text_area, 1, i)
-            self.text_areas.append(text_area)
         self.setLayout(self.layout)
         logging.debug("UI initialized.")
 
     def create_mouse_press_event(self, index):
         def mouse_press_event(event):
-            logging.debug(f"Slot {index+1} clicked.")
+            logging.debug(f"Slot {index + 1} clicked.")
             self.slot_selected(index)
         return mouse_press_event
 
     def update_ui(self):
-        for i, text_area in enumerate(self.text_areas):
+        for i, slot_widget in enumerate(self.slot_widgets):
             content_preview = (self.slots[i][:100] + '...') if len(self.slots[i]) > 100 else self.slots[i]
-            text_area.setText(f"Slot {i+1}:{content_preview}")
+            slot_widget.set_content(content_preview)
         logging.debug("UI updated with current slots.")
-        QtGui.QGuiApplication.processEvents()  # update gui so that pyqt app loop completes and displays frame to user
-
+        QtGui.QGuiApplication.processEvents()  # Update GUI to display changes
 
     def slot_selected(self, index):
         logging.debug(f"slot_selected called with mode: {self.mode}")
         self.disable_number_key_listeners()
         if self.mode == "copy":
-            logging.debug(f"Copying to slot {index+1}: {self.current_clipboard_content}")
+            logging.debug(f"Copying to slot {index + 1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
-            time.sleep(0.5)  # wait a bit for user to see the new values before hiding.
+            time.sleep(0.5)  # Wait for user to see the new values before hiding
         elif self.mode == "paste":
-            logging.debug(f"Pasting from slot {index+1}: {self.slots[index]}")
+            logging.debug(f"Pasting from slot {index + 1}: {self.slots[index]}")
             pyperclip.copy(self.slots[index])
             logging.debug("Simulating Ctrl+V to paste selected text.")
             keyboard.press_and_release("ctrl+v")
@@ -111,7 +133,7 @@ class ClipboardManager(QtWidgets.QWidget):
         self.show()
 
     def hide_ui(self):
-        logging.debug("hide_ui called. ")
+        logging.debug("hide_ui called.")
         self.disable_number_key_listeners()
         self.hide()
 
@@ -139,16 +161,16 @@ def hotkey_listener():
 
     def enable_number_key_listeners():
         logging.debug("enable_number_key_listeners for 0 through 9, and ESC")
-        keyboard.add_hotkey("1", type_number_hotkey, args=tuple("0"), suppress=True)
-        keyboard.add_hotkey("2", type_number_hotkey, args=tuple("1"), suppress=True)
-        keyboard.add_hotkey("3", type_number_hotkey, args=tuple("2"), suppress=True)
-        keyboard.add_hotkey("4", type_number_hotkey, args=tuple("3"), suppress=True)
-        keyboard.add_hotkey("5", type_number_hotkey, args=tuple("4"), suppress=True)
-        keyboard.add_hotkey("6", type_number_hotkey, args=tuple("5"), suppress=True)
-        keyboard.add_hotkey("7", type_number_hotkey, args=tuple("6"), suppress=True)
-        keyboard.add_hotkey("8", type_number_hotkey, args=tuple("7"), suppress=True)
-        keyboard.add_hotkey("9", type_number_hotkey, args=tuple("8"), suppress=True)
-        keyboard.add_hotkey("0", type_number_hotkey, args=tuple("9"), suppress=True)
+        keyboard.add_hotkey("1", type_number_hotkey, args=(0,), suppress=True)
+        keyboard.add_hotkey("2", type_number_hotkey, args=(1,), suppress=True)
+        keyboard.add_hotkey("3", type_number_hotkey, args=(2,), suppress=True)
+        keyboard.add_hotkey("4", type_number_hotkey, args=(3,), suppress=True)
+        keyboard.add_hotkey("5", type_number_hotkey, args=(4,), suppress=True)
+        keyboard.add_hotkey("6", type_number_hotkey, args=(5,), suppress=True)
+        keyboard.add_hotkey("7", type_number_hotkey, args=(6,), suppress=True)
+        keyboard.add_hotkey("8", type_number_hotkey, args=(7,), suppress=True)
+        keyboard.add_hotkey("9", type_number_hotkey, args=(8,), suppress=True)
+        keyboard.add_hotkey("0", type_number_hotkey, args=(9,), suppress=True)
         keyboard.add_hotkey("esc", esc_hotkey, suppress=True)
 
     def paste_hotkey():
@@ -166,11 +188,11 @@ def hotkey_listener():
         if is_listening_for_key_chord:
             return
 
-        logging.debug(f"Number {key_value} was pressed.")
-        manager.trigger_select_slot.emit(int(key_value)) # fires slot_selected()
+        logging.debug(f"Number {key_value + 1} was pressed.")
+        manager.trigger_select_slot.emit(key_value)  # Fires slot_selected()
 
     def esc_hotkey():
-        manager.trigger_hide_ui.emit() # call hide_ui
+        manager.trigger_hide_ui.emit()  # Call hide_ui
 
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
