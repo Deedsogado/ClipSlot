@@ -21,6 +21,7 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
         # Label for content
         self.content_label = QtWidgets.QLabel(self)
         self.content_label.setGeometry(0, 0, self.width(), self.height())
+        self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 2px;")
 
         # Label for slot index
         self.slot_label = QtWidgets.QLabel(self)
@@ -101,19 +102,6 @@ class ClipboardManager(QtWidgets.QWidget):
             self.slot_selected(index)
         return mouse_press_event
 
-    def update_ui(self):
-        for i, slot_widget in enumerate(self.slot_widgets):
-            content = self.slots[i]
-            if isinstance(content, QtGui.QImage):
-                slot_widget.set_content(content)
-            elif isinstance(content, str):
-                content_preview = (content[:500] + '...') if len(content) > 500 else content
-                slot_widget.set_content(content_preview)
-            else:
-                slot_widget.set_content("")
-        logging.debug("UI updated with current slots.")
-        QtGui.QGuiApplication.processEvents()  # Update GUI to display changes
-
     def slot_selected(self, index):
         logging.debug(f"slot_selected called with mode: {self.mode}")
         self.disable_number_key_listeners()
@@ -122,7 +110,16 @@ class ClipboardManager(QtWidgets.QWidget):
         if self.mode == "copy":
             logging.debug(f"Copying to slot {index + 1}.")
             self.slots[index] = self.current_clipboard_content
-            self.update_ui()
+            content = self.slots[index]
+            slot_widget = self.slot_widgets[index]
+            if isinstance(content, QtGui.QImage):
+                slot_widget.set_content(content)
+            elif isinstance(content, str):
+                content_preview = (content[:500] + '...') if len(content) > 500 else content
+                slot_widget.set_content(content_preview)
+            else:
+                slot_widget.set_content("")
+            QtGui.QGuiApplication.processEvents()  # Update GUI to display changes
             time.sleep(0.5)  # Wait for user to see the new values before hiding
         elif self.mode == "paste":
             logging.debug(f"Pasting from slot {index + 1}.")
@@ -175,7 +172,6 @@ class ClipboardManager(QtWidgets.QWidget):
                 self.current_clipboard_content = None
                 logging.debug("Unsupported clipboard content.")
 
-            self.update_ui()
         self.show()
 
     def hide_ui(self):
