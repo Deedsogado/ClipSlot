@@ -14,6 +14,7 @@ isListeningForC = True
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
     trigger_ui = QtCore.pyqtSignal(str)
+    trigger_select_slot = QtCore.pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
@@ -21,10 +22,11 @@ class ClipboardManager(QtWidgets.QWidget):
         self.current_clipboard_content = ""  # Store the current clipboard content
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self.setGeometry(400, 200, 800, 300)
+        self.setGeometry(1600, 400, 800, 300)
 
         # Connect the custom signal to the show_ui method
         self.trigger_ui.connect(self.show_ui)
+        self.trigger_select_slot.connect(self.slot_selected)
         logging.debug("ClipboardManager initialized.")
 
     def init_ui(self):
@@ -36,7 +38,7 @@ class ClipboardManager(QtWidgets.QWidget):
             text_area.setStyleSheet("font-size: 14px; padding: 5px;")
             text_area.setText(f"Slot {i+1}: {self.slots[i]}")
 
-            # Fix: Bind the current value of index to the lambda using a default argument
+            # Bind the current value of index to the lambda using a default argument
             text_area.mousePressEvent = self.create_mouse_press_event(i)
 
             self.layout.addWidget(text_area, i // 5, i % 5)
@@ -55,18 +57,23 @@ class ClipboardManager(QtWidgets.QWidget):
             content_preview = (self.slots[i][:50] + '...') if len(self.slots[i]) > 50 else self.slots[i]
             text_area.setText(f"Slot {i+1}:{content_preview}")
         logging.debug("UI updated with current slots.")
+        QtGui.QGuiApplication.processEvents()  # update gui so that pyqt app loop completes and displays frame to user
+
 
     def slot_selected(self, index):
         global isListeningForC
+        logging.debug(f"slot_selected called with mode: {self.mode}")
         if self.mode == "copy":
             logging.debug(f"Copying to slot {index+1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
             isListeningForC = True
-            time.sleep(0.5)  # wait a bit for user to see the new values before hiding.
+            time.sleep(4)  # wait a bit for user to see the new values before hiding.
         elif self.mode == "paste":
             logging.debug(f"Pasting from slot {index+1}: {self.slots[index]}")
             pyperclip.copy(self.slots[index])
+            logging.debug("Simulating Ctrl+V to paste selected text.")
+            keyboard.press_and_release("ctrl+v")
         self.hide()
 
     def show_ui(self, mode):
@@ -100,14 +107,24 @@ def hotkey_listener():
         while keyboard.is_pressed("ctrl") or keyboard.is_pressed("shift") or keyboard.is_pressed("c"):
             time.sleep(0.05)  # Wait until all keys are released
 
-        manager.trigger_ui.emit("copy")  # Emit signal to show UI in copy mode
+        manager.trigger_ui.emit("copy")  # Emit signal to show_ui() in copy mode
 
     def paste_hotkey():
         logging.debug("Ctrl+Shift+V pressed.")
-        manager.trigger_ui.emit("paste")  # Emit signal to show UI in paste mode
+        manager.trigger_ui.emit("paste")  # Emit signal to show_ui() in paste mode
+
+    def select_hotkey(key_value):
+        global isListeningForC
+        if isListeningForC:
+            return
+
+        logging.debug(f"Number {key_value} was pressed.")
+        manager.trigger_select_slot.emit(int(key_value)) # fires slot_selected()
 
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
+    keyboard.add_hotkey("1", select_hotkey, args=tuple("0"))
+
     logging.debug("Hotkeys registered. Waiting for input...")
     keyboard.wait()
 
