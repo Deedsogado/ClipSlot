@@ -20,9 +20,6 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
         # Use absolute positioning to overlay the slot_label
         # Label for content
         self.content_label = QtWidgets.QLabel(self)
-        self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self.content_label.setWordWrap(True)
-        self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 5px;")
         self.content_label.setGeometry(0, 0, self.width(), self.height())
 
         # Label for slot index
@@ -41,13 +38,21 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
     def set_content(self, content):
         if isinstance(content, QtGui.QImage):
             pixmap = QtGui.QPixmap.fromImage(content)
-            self.content_label.setPixmap(pixmap.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
+            label_width = self.content_label.width()
+
+            # Only scale down if the image width exceeds the label width
+            if pixmap.width() > label_width:
+                scaled_pixmap = pixmap.scaledToWidth(label_width, QtCore.Qt.SmoothTransformation)
+            else:
+                scaled_pixmap = pixmap  # Use the original size if smaller
+
+            self.content_label.setPixmap(scaled_pixmap)
+            self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         elif isinstance(content, str):
             # Display text content
             self.content_label.setText(content)
             self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-            self.content_label.setWordWrap(True)
-            self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 5px;")
+            self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 2px;")
         else:
             # Fallback for unsupported content types
             self.content_label.setText("Unsupported Content")
@@ -102,7 +107,7 @@ class ClipboardManager(QtWidgets.QWidget):
             if isinstance(content, QtGui.QImage):
                 slot_widget.set_content(content)
             elif isinstance(content, str):
-                content_preview = (content[:100] + '...') if len(content) > 100 else content
+                content_preview = (content[:500] + '...') if len(content) > 500 else content
                 slot_widget.set_content(content_preview)
             else:
                 slot_widget.set_content("")
