@@ -1,5 +1,4 @@
 import sys
-import pyperclip
 import keyboard
 from PyQt5 import QtWidgets, QtCore, QtGui
 import threading
@@ -40,15 +39,9 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
         self.slot_label.move(self.width() - 20, self.height() - 20)
 
     def set_content(self, content):
-        if isinstance(content, QtGui.QPixmap):
-            if content.isNull():
-                # Fallback if the image is invalid
-                self.content_label.setText("No Preview Available")
-                self.content_label.setStyleSheet("color: red; font-size: 14px;")
-                self.content_label.setAlignment(QtCore.Qt.AlignCenter)
-            else:
-                # Display the image
-                self.content_label.setPixmap(content.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
+        if isinstance(content, QtGui.QImage):
+            pixmap = QtGui.QPixmap.fromImage(content)
+            self.content_label.setPixmap(pixmap.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
         elif isinstance(content, str):
             # Display text content
             self.content_label.setText(content)
@@ -69,8 +62,8 @@ class ClipboardManager(QtWidgets.QWidget):
 
     def __init__(self):
         super().__init__()
-        self.slots = ["" for _ in range(10)]  # Initialize 10 clipboard slots
-        self.current_clipboard_content = ""  # Store the current clipboard content
+        self.slots = [None for _ in range(10)]  # Initialize 10 clipboard slots
+        self.current_clipboard_content = None  # Store the current clipboard content
         self.init_ui()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         dialog_width = self.screen().size().width() - 100
@@ -105,23 +98,37 @@ class ClipboardManager(QtWidgets.QWidget):
 
     def update_ui(self):
         for i, slot_widget in enumerate(self.slot_widgets):
-            content_preview = (self.slots[i][:100] + '...') if len(self.slots[i]) > 100 else self.slots[i]
-            slot_widget.set_content(content_preview)
+            content = self.slots[i]
+            if isinstance(content, QtGui.QImage):
+                slot_widget.set_content(content)
+            elif isinstance(content, str):
+                content_preview = (content[:100] + '...') if len(content) > 100 else content
+                slot_widget.set_content(content_preview)
+            else:
+                slot_widget.set_content("")
         logging.debug("UI updated with current slots.")
         QtGui.QGuiApplication.processEvents()  # Update GUI to display changes
 
     def slot_selected(self, index):
         logging.debug(f"slot_selected called with mode: {self.mode}")
         self.disable_number_key_listeners()
+        clipboard = QtWidgets.QApplication.clipboard()
+
         if self.mode == "copy":
-            # logging.debug(f"Copying to slot {index + 1}: {self.current_clipboard_content}")
+            logging.debug(f"Copying to slot {index + 1}.")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
             time.sleep(0.5)  # Wait for user to see the new values before hiding
         elif self.mode == "paste":
-            logging.debug(f"Pasting from slot {index + 1}: {self.slots[index]}")
-            pyperclip.copy(self.slots[index])
-            logging.debug("Simulating Ctrl+V to paste selected text.")
+            logging.debug(f"Pasting from slot {index + 1}.")
+            content = self.slots[index]
+            if isinstance(content, str):
+                clipboard.setText(content)
+            elif isinstance(content, QtGui.QImage):
+                clipboard.setImage(content)
+            else :
+                clipboard.clear()
+            QtWidgets.QApplication.processEvents()
             keyboard.press_and_release("ctrl+v")
         self.hide()
 
@@ -144,13 +151,25 @@ class ClipboardManager(QtWidgets.QWidget):
     def show_ui(self, mode):
         logging.debug(f"show_ui called with mode: {mode}")
         self.mode = mode
+        clipboard = QtWidgets.QApplication.clipboard()
+
         if mode == "copy":
-            # logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
             time.sleep(0.01)  # Allow time for clipboard to update
-            self.current_clipboard_content = pyperclip.paste()
-            # logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
+            QtWidgets.QApplication.processEvents()
+            mime_data = clipboard.mimeData()
+
+            if mime_data.hasText():
+                self.current_clipboard_content = mime_data.text()
+                logging.debug(f"Copied text: {self.current_clipboard_content}")
+            elif mime_data.hasImage():
+                self.current_clipboard_content = clipboard.image()
+                logging.debug("Copied an image.")
+            else:
+                self.current_clipboard_content = None
+                logging.debug("Unsupported clipboard content.")
+
             self.update_ui()
         self.show()
 
