@@ -13,7 +13,7 @@ isListeningForC = True
 
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
-    trigger_ui = QtCore.pyqtSignal(str)
+    trigger_show_ui = QtCore.pyqtSignal(str)
     trigger_select_slot = QtCore.pyqtSignal(int)
 
     def __init__(self):
@@ -25,7 +25,7 @@ class ClipboardManager(QtWidgets.QWidget):
         self.setGeometry(1600, 400, 800, 300)
 
         # Connect the custom signal to the show_ui method
-        self.trigger_ui.connect(self.show_ui)
+        self.trigger_show_ui.connect(self.show_ui)
         self.trigger_select_slot.connect(self.slot_selected)
         logging.debug("ClipboardManager initialized.")
 
@@ -63,18 +63,24 @@ class ClipboardManager(QtWidgets.QWidget):
     def slot_selected(self, index):
         global isListeningForC
         logging.debug(f"slot_selected called with mode: {self.mode}")
+        self.disable_number_key_listeners()
         if self.mode == "copy":
             logging.debug(f"Copying to slot {index+1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
             isListeningForC = True
-            time.sleep(4)  # wait a bit for user to see the new values before hiding.
+            time.sleep(2)  # wait a bit for user to see the new values before hiding.
         elif self.mode == "paste":
             logging.debug(f"Pasting from slot {index+1}: {self.slots[index]}")
             pyperclip.copy(self.slots[index])
             logging.debug("Simulating Ctrl+V to paste selected text.")
             keyboard.press_and_release("ctrl+v")
         self.hide()
+
+    def disable_number_key_listeners(self):
+        logging.debug("disable_number_key_listeners for 1 through 9, and 0")
+        for number in range(10):
+            keyboard.remove_hotkey(str(number))
 
     def show_ui(self, mode):
         logging.debug(f"show_ui called with mode: {mode}")
@@ -83,7 +89,7 @@ class ClipboardManager(QtWidgets.QWidget):
             logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
-            time.sleep(1)  # Allow time for clipboard to update
+            time.sleep(0.1)  # Allow time for clipboard to update
             self.current_clipboard_content = pyperclip.paste()
             logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
         self.update_ui()
@@ -107,11 +113,26 @@ def hotkey_listener():
         while keyboard.is_pressed("ctrl") or keyboard.is_pressed("shift") or keyboard.is_pressed("c"):
             time.sleep(0.05)  # Wait until all keys are released
 
-        manager.trigger_ui.emit("copy")  # Emit signal to show_ui() in copy mode
+        enable_number_key_listeners()
+
+        manager.trigger_show_ui.emit("copy")  # Emit signal to show_ui() in copy mode
+
+    def enable_number_key_listeners():
+        logging.debug("enable_number_key_listeners for 1 through 9, and 0")
+        keyboard.add_hotkey("1", select_hotkey, args=tuple("0"), suppress=True)
+        keyboard.add_hotkey("2", select_hotkey, args=tuple("1"), suppress=True)
+        keyboard.add_hotkey("3", select_hotkey, args=tuple("2"), suppress=True)
+        keyboard.add_hotkey("4", select_hotkey, args=tuple("3"), suppress=True)
+        keyboard.add_hotkey("5", select_hotkey, args=tuple("4"), suppress=True)
+        keyboard.add_hotkey("6", select_hotkey, args=tuple("5"), suppress=True)
+        keyboard.add_hotkey("7", select_hotkey, args=tuple("6"), suppress=True)
+        keyboard.add_hotkey("8", select_hotkey, args=tuple("7"), suppress=True)
+        keyboard.add_hotkey("9", select_hotkey, args=tuple("8"), suppress=True)
+        keyboard.add_hotkey("0", select_hotkey, args=tuple("9"), suppress=True)
 
     def paste_hotkey():
         logging.debug("Ctrl+Shift+V pressed.")
-        manager.trigger_ui.emit("paste")  # Emit signal to show_ui() in paste mode
+        manager.trigger_show_ui.emit("paste")  # Emit signal to show_ui() in paste mode
 
     def select_hotkey(key_value):
         global isListeningForC
@@ -123,7 +144,6 @@ def hotkey_listener():
 
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
-    keyboard.add_hotkey("1", select_hotkey, args=tuple("0"))
 
     logging.debug("Hotkeys registered. Waiting for input...")
     keyboard.wait()
