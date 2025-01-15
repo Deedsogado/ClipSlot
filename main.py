@@ -9,7 +9,7 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-isListeningForC = True
+is_listening_for_key_chord = True
 
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
@@ -63,15 +63,13 @@ class ClipboardManager(QtWidgets.QWidget):
 
 
     def slot_selected(self, index):
-        global isListeningForC
         logging.debug(f"slot_selected called with mode: {self.mode}")
         self.disable_number_key_listeners()
         if self.mode == "copy":
             logging.debug(f"Copying to slot {index+1}: {self.current_clipboard_content}")
             self.slots[index] = self.current_clipboard_content
             self.update_ui()
-            isListeningForC = True
-            time.sleep(2)  # wait a bit for user to see the new values before hiding.
+            time.sleep(0.5)  # wait a bit for user to see the new values before hiding.
         elif self.mode == "paste":
             logging.debug(f"Pasting from slot {index+1}: {self.slots[index]}")
             pyperclip.copy(self.slots[index])
@@ -80,6 +78,7 @@ class ClipboardManager(QtWidgets.QWidget):
         self.hide()
 
     def disable_number_key_listeners(self):
+        global is_listening_for_key_chord
         logging.debug("disable_number_key_listeners for 0 through 9, and ESC")
         keyboard.remove_hotkey("1")
         keyboard.remove_hotkey("2")
@@ -92,6 +91,7 @@ class ClipboardManager(QtWidgets.QWidget):
         keyboard.remove_hotkey("9")
         keyboard.remove_hotkey("0")
         keyboard.remove_hotkey("esc")
+        is_listening_for_key_chord = True
 
     def show_ui(self, mode):
         logging.debug(f"show_ui called with mode: {mode}")
@@ -100,15 +100,13 @@ class ClipboardManager(QtWidgets.QWidget):
             logging.debug(f"current_clipboard_content: {self.current_clipboard_content}")
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
-            time.sleep(0.1)  # Allow time for clipboard to update
+            time.sleep(0.01)  # Allow time for clipboard to update
             self.current_clipboard_content = pyperclip.paste()
             logging.debug(f"Clipboard updated: {self.current_clipboard_content}")
-        self.update_ui()
+            self.update_ui()
         self.show()
 
     def hide_ui(self):
-        global isListeningForC
-        isListeningForC = True
         logging.debug("hide_ui called. ")
         self.disable_number_key_listeners()
         self.hide()
@@ -120,16 +118,16 @@ manager = ClipboardManager()
 # Function to handle hotkeys in a separate thread
 def hotkey_listener():
     def copy_hotkey():
-        global isListeningForC
-        if not isListeningForC:
+        global is_listening_for_key_chord
+        if not is_listening_for_key_chord:
             return
 
-        isListeningForC = False
+        is_listening_for_key_chord = False
         logging.debug("Ctrl+Shift+C pressed.")
         # Ensure no keys are pressed before sending Ctrl+C
         logging.debug("Ensuring no keys are pressed before copying.")
         while keyboard.is_pressed("ctrl") or keyboard.is_pressed("shift") or keyboard.is_pressed("c"):
-            time.sleep(0.05)  # Wait until all keys are released
+            time.sleep(0.01)  # Wait until all keys are released
 
         enable_number_key_listeners()
 
@@ -150,13 +148,18 @@ def hotkey_listener():
         keyboard.add_hotkey("esc", esc_hotkey, suppress=True)
 
     def paste_hotkey():
+        global is_listening_for_key_chord
+        if not is_listening_for_key_chord:
+            return
+
+        is_listening_for_key_chord = False
         logging.debug("Ctrl+Shift+V pressed.")
         enable_number_key_listeners()
         manager.trigger_show_ui.emit("paste")  # Emit signal to show_ui() in paste mode
 
     def type_number_hotkey(key_value):
-        global isListeningForC
-        if isListeningForC:
+        global is_listening_for_key_chord
+        if is_listening_for_key_chord:
             return
 
         logging.debug(f"Number {key_value} was pressed.")
