@@ -18,26 +18,31 @@ class ClipboardSlotWidget(QtWidgets.QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-
-        self.content_label = QtWidgets.QLabel()
-        self.content_label.setAlignment(QtCore.Qt.AlignCenter)
+        # Use absolute positioning to overlay the slot_label
+        self.content_label = QtWidgets.QLabel(self)
+        self.content_label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.content_label.setWordWrap(True)
-        self.content_label.setStyleSheet("font-size: 14px; border: 1px solid gray; padding: 5px;")
+        self.content_label.setStyleSheet("font-size: 12px; border: 1px solid gray; padding: 5px;")
+        self.content_label.setGeometry(0, 0, self.width(), self.height())
 
-        self.slot_label = QtWidgets.QLabel(f"{self.slot_index + 1}")
+        self.slot_label = QtWidgets.QLabel(self)
         self.slot_label.setAlignment(QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
-        self.slot_label.setStyleSheet("font-size: 12px; color: gray; margin: 0; border: 1px solid red;")
+        self.slot_label.setStyleSheet("font-size: 14px; color: silver; margin: 0; background: transparent;")
+        self.slot_label.setText(f"{self.slot_index + 1}")
 
-        layout.addWidget(self.content_label)
-        layout.addWidget(self.slot_label)
+        # Update label positions when the widget is resized
+        self.resizeEvent = self.update_label_positions
+
+    def update_label_positions(self, event):
+        self.content_label.setGeometry(0, 0, self.width(), self.height())
+        self.slot_label.move(self.width() - 20, self.height() - 20)
 
     def set_content(self, content):
         if isinstance(content, QtGui.QPixmap):
             self.content_label.setPixmap(content.scaled(self.content_label.size(), QtCore.Qt.KeepAspectRatio))
         else:
             self.content_label.setText(content)
+
 
 class ClipboardManager(QtWidgets.QWidget):
     # Define a signal to safely update the UI from a different thread
