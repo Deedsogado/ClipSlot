@@ -57,11 +57,11 @@ You can also press `ESC` to cancel and close the window without changing the slo
 
 ### Future Ideas
 * Light mode and Dark Mode. Toggle with `M` while window is visible.
-* Use arrow keys `← ↑ ↓ →` to highlight a slot and `ENTER` to select, without moving focus from other programs.
-  * Empty contents of a slot with `DEL` or `BACKSPACE`.
 * Window is currently docked to top of screen. Allow it to dock to other edges, or be centered. 
   * Dock to top edge. `I` while window is visible. Slots spread out horizontally. (DEFAULT)
   * Dock to left edge. `J` while window is visible. Slots stacked vertically.
   * Dock to bottom edge. `K` while window is visible. Slots spread out horizontally.
   * Dock to right edge. `L` while window is visible. Slots stacked vertically.
   * Float in center of screen. `.` while window is visible. Slots spread out horizontally.
+* Use arrow keys `← ↑ ↓ →` to highlight a slot and `ENTER` to select, without moving focus from other programs.
+  * Empty contents of a slot with `DEL` or `BACKSPACE`.
