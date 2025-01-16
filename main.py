@@ -107,7 +107,7 @@ class ClipboardManager(QtWidgets.QWidget):
         self.disable_number_key_listeners()
         clipboard = QtWidgets.QApplication.clipboard()
 
-        if self.mode == "copy":
+        if self.mode == "copy" or self.mode == "cut":
             logging.debug(f"Copying to slot {index + 1}.")
             self.slots[index] = self.current_clipboard_content
             content = self.slots[index]
@@ -153,15 +153,8 @@ class ClipboardManager(QtWidgets.QWidget):
     def show_ui(self, mode):
         logging.debug(f"show_ui called with mode: {mode}")
         self.mode = mode
-        clipboard = QtWidgets.QApplication.clipboard()
-
-        self.move_to_active_screen()
-
-        if mode == "copy":
-            logging.debug("Simulating Ctrl+C to copy selected text.")
-            keyboard.press_and_release("ctrl+c")
-            time.sleep(0.01)  # Allow time for clipboard to update
-            QtWidgets.QApplication.processEvents()
+        if mode == "copy" or mode == "cut":
+            clipboard = QtWidgets.QApplication.clipboard()
             mime_data = clipboard.mimeData()
 
             if mime_data.hasText():
@@ -173,7 +166,7 @@ class ClipboardManager(QtWidgets.QWidget):
             else:
                 self.current_clipboard_content = None
                 logging.debug("Unsupported clipboard content.")
-
+        self.move_to_active_screen()
         self.show()
 
     def move_to_active_screen(self):
@@ -218,6 +211,26 @@ manager = ClipboardManager()
 
 # Function to handle hotkeys in a separate thread
 def hotkey_listener():
+    def cut_hotkey():
+        global is_listening_for_key_chord
+        if not is_listening_for_key_chord:
+            return
+
+        is_listening_for_key_chord = False
+        logging.debug("Ctrl+Shift+X pressed.")
+        # Ensure no keys are pressed before sending Ctrl+C
+        logging.debug("Ensuring no keys are pressed before cutting.")
+        while keyboard.is_pressed("ctrl") or keyboard.is_pressed("shift") or keyboard.is_pressed("x"):
+            time.sleep(0.01)  # Wait until all keys are released
+
+        enable_number_key_listeners()
+        logging.debug("Simulating Ctrl+X to cut selected text.")
+        keyboard.press_and_release("ctrl+x")
+        time.sleep(0.01)  # Allow time for clipboard to update
+        QtWidgets.QApplication.processEvents()
+        manager.trigger_show_ui.emit("cut")  # Emit signal to show_ui() in cut mode
+
+
     def copy_hotkey():
         global is_listening_for_key_chord
         if not is_listening_for_key_chord:
@@ -231,22 +244,11 @@ def hotkey_listener():
             time.sleep(0.01)  # Wait until all keys are released
 
         enable_number_key_listeners()
-
+        logging.debug("Simulating Ctrl+C to copy selected text.")
+        keyboard.press_and_release("ctrl+c")
+        time.sleep(0.01)  # Allow time for clipboard to update
+        QtWidgets.QApplication.processEvents()
         manager.trigger_show_ui.emit("copy")  # Emit signal to show_ui() in copy mode
-
-    def enable_number_key_listeners():
-        logging.debug("enable_number_key_listeners for 0 through 9, and ESC")
-        keyboard.add_hotkey("1", type_number_hotkey, args=(0,), suppress=True)
-        keyboard.add_hotkey("2", type_number_hotkey, args=(1,), suppress=True)
-        keyboard.add_hotkey("3", type_number_hotkey, args=(2,), suppress=True)
-        keyboard.add_hotkey("4", type_number_hotkey, args=(3,), suppress=True)
-        keyboard.add_hotkey("5", type_number_hotkey, args=(4,), suppress=True)
-        keyboard.add_hotkey("6", type_number_hotkey, args=(5,), suppress=True)
-        keyboard.add_hotkey("7", type_number_hotkey, args=(6,), suppress=True)
-        keyboard.add_hotkey("8", type_number_hotkey, args=(7,), suppress=True)
-        keyboard.add_hotkey("9", type_number_hotkey, args=(8,), suppress=True)
-        keyboard.add_hotkey("0", type_number_hotkey, args=(9,), suppress=True)
-        keyboard.add_hotkey("esc", esc_hotkey, suppress=True)
 
     def paste_hotkey():
         global is_listening_for_key_chord
@@ -269,6 +271,21 @@ def hotkey_listener():
     def esc_hotkey():
         manager.trigger_hide_ui.emit()  # Call hide_ui
 
+    def enable_number_key_listeners():
+        logging.debug("enable_number_key_listeners for 0 through 9, and ESC")
+        keyboard.add_hotkey("1", type_number_hotkey, args=(0,), suppress=True)
+        keyboard.add_hotkey("2", type_number_hotkey, args=(1,), suppress=True)
+        keyboard.add_hotkey("3", type_number_hotkey, args=(2,), suppress=True)
+        keyboard.add_hotkey("4", type_number_hotkey, args=(3,), suppress=True)
+        keyboard.add_hotkey("5", type_number_hotkey, args=(4,), suppress=True)
+        keyboard.add_hotkey("6", type_number_hotkey, args=(5,), suppress=True)
+        keyboard.add_hotkey("7", type_number_hotkey, args=(6,), suppress=True)
+        keyboard.add_hotkey("8", type_number_hotkey, args=(7,), suppress=True)
+        keyboard.add_hotkey("9", type_number_hotkey, args=(8,), suppress=True)
+        keyboard.add_hotkey("0", type_number_hotkey, args=(9,), suppress=True)
+        keyboard.add_hotkey("esc", esc_hotkey, suppress=True)
+
+    keyboard.add_hotkey("ctrl+shift+x", cut_hotkey)
     keyboard.add_hotkey("ctrl+shift+c", copy_hotkey)
     keyboard.add_hotkey("ctrl+shift+v", paste_hotkey)
 
