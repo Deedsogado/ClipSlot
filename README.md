@@ -3,8 +3,12 @@ Clipboard Manager
 
 Gives you 10 clipboard slots instead of one to store text and images. 
 
+For multiple monitor setups, ClipSlot will try to open on the focused monitor. 
+
 ## How to use 
-Must have python installed.  
+You must have [Python](https://www.python.org/downloads/) installed.
+Then install these packages: 
+
 Run main.py to start the program. 
 
 ### Copy 
@@ -40,7 +44,6 @@ You can also press `ESC` to cancel and close the window without changing the slo
 * Cut with `CTRL+SHIFT+X`. Behaves mostly the same as copy.
 * Use arrow keys `← ↑ ↓ →` to highlight a slot and `ENTER` to select, without moving focus from other programs.
   * Empty contents of a slot with `DEL` or `BACKSPACE`.
-* For multiple monitor setups, open on focused monitor.
 * Window is currently docked to top of screen. Allow it to dock to other edges, or be centered. 
   * Dock to top edge. `I` while window is visible. Slots spread out horizontally. (DEFAULT)
   * Dock to left edge. `J` while window is visible. Slots stacked vertically.

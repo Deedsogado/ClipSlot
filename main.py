@@ -155,6 +155,8 @@ class ClipboardManager(QtWidgets.QWidget):
         self.mode = mode
         clipboard = QtWidgets.QApplication.clipboard()
 
+        self.move_to_active_screen()
+
         if mode == "copy":
             logging.debug("Simulating Ctrl+C to copy selected text.")
             keyboard.press_and_release("ctrl+c")
@@ -173,6 +175,37 @@ class ClipboardManager(QtWidgets.QWidget):
                 logging.debug("Unsupported clipboard content.")
 
         self.show()
+
+    def move_to_active_screen(self):
+        # Get the screen where the cursor is currently located
+        screen = QtGui.QGuiApplication.screenAt(QtGui.QCursor.pos())
+        if not screen:
+            logging.warning("Could not determine the active screen. Falling back to primary screen.")
+            screen = QtWidgets.QApplication.primaryScreen()
+
+        # Explicitly set the window to appear on this screen
+        logging.debug(f"self.windowHandle: {self.windowHandle()}")
+        if not self.windowHandle():
+            logging.debug("self.windowHandle is None. Attempting to ensure native window handle.")
+            self.setAttribute(QtCore.Qt.WA_NativeWindow, True)
+            QtWidgets.QApplication.processEvents()  # Process pending events including building the window.
+            if not self.windowHandle():
+                logging.error("Failed to get window handle after processEvents()")
+                return
+
+        logging.debug(f"setting screen to screen: {screen.name()}")
+        self.windowHandle().setScreen(screen)
+        logging.debug("about to get screen geometry.")
+        screen_geometry = screen.geometry()
+        logging.debug(f"Screen geometry: {screen_geometry}")
+
+        dialog_width = screen_geometry.width() - 100
+        dialog_height = 150
+        dialog_x = screen_geometry.x() + (screen_geometry.width() // 2) - (dialog_width // 2)
+        dialog_y = screen_geometry.y()  # Position at the top of the screen
+
+        logging.debug(f"Setting window geometry: x={dialog_x}, y={dialog_y}, width={dialog_width}, height={dialog_height} on screen {screen.name()}")
+        self.setGeometry(dialog_x, dialog_y, dialog_width, dialog_height)
 
     def hide_ui(self):
         logging.debug("hide_ui called.")
